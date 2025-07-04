@@ -1,0 +1,23 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pawpad"
+version = "0.1.0"
+description = "A tool for encoding fingerprints in text using Unicode variation selectors"
+authors = [{ name = "User", email = "user@example.com" }]
+dependencies = ["click>=8.0.0", "rich>=13.0.0"]
+requires-python = ">=3.8"
+
+[project.scripts]
+pawpad = "pawpad.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pawpad"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/pawpad"]
+
+[tool.hatch.envs.default]
+dependencies = ["pytest", "black", "isort"]

@@ -141,10 +141,6 @@ $ pawpad decode --text "H󠄘󠆰󠅩󠆟󠆟󠇢󠅾󠆍󠄠󠄑󠆜󠄡󠄁�
 
 This project is provided for educational purposes. Use responsibly and in accordance with applicable laws and regulations.
 
-## Contributing
-
-Contributions are welcome! Please feel free to submit pull requests or open issues for bugs and feature requests.
-
 ## Acknowledgments
 
 Inspired by the Unicode steganography techniques discussed in [this blog post](https://emoji.paulbutler.org/) and the original concept from [GuB-42's Hacker News comment](https://news.ycombinator.com/item?id=42823876). # pawpad
