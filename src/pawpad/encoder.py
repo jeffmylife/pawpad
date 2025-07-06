@@ -4,7 +4,14 @@ Unicode variation selector encoder for hiding data in text.
 
 import secrets
 import hashlib
-from typing import List, Optional
+import hmac
+import json
+from typing import List, Optional, Tuple, Dict, Any
+from cryptography.hazmat.primitives.asymmetric import rsa, padding
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+import os
 
 
 def byte_to_variation_selector(byte: int) -> str:
@@ -338,3 +345,274 @@ def decode_message_from_single_char(encoded_char: str) -> str:
         return decoded_bytes.decode("utf-8", errors="ignore")
     except:
         return ""
+
+
+# =============================================================================
+# CRYPTOGRAPHIC TAMPERING DETECTION FUNCTIONS
+# =============================================================================
+
+
+def generate_key_pair() -> Tuple[bytes, bytes]:
+    """Generate an RSA key pair for signing and verification.
+
+    Returns:
+        Tuple of (private_key_pem, public_key_pem) as bytes
+    """
+    private_key = rsa.generate_private_key(
+        public_exponent=65537,
+        key_size=2048,
+    )
+
+    private_pem = private_key.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.PKCS8,
+        encryption_algorithm=serialization.NoEncryption(),
+    )
+
+    public_key = private_key.public_key()
+    public_pem = public_key.public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo,
+    )
+
+    return private_pem, public_pem
+
+
+def save_key_pair(
+    private_key_pem: bytes,
+    public_key_pem: bytes,
+    private_key_path: str,
+    public_key_path: str,
+) -> None:
+    """Save key pair to files.
+
+    Args:
+        private_key_pem: Private key in PEM format
+        public_key_pem: Public key in PEM format
+        private_key_path: Path to save private key
+        public_key_path: Path to save public key
+    """
+    with open(private_key_path, "wb") as f:
+        f.write(private_key_pem)
+
+    with open(public_key_path, "wb") as f:
+        f.write(public_key_pem)
+
+
+def load_private_key(private_key_path: str) -> bytes:
+    """Load private key from file.
+
+    Args:
+        private_key_path: Path to private key file
+
+    Returns:
+        Private key PEM bytes
+    """
+    with open(private_key_path, "rb") as f:
+        return f.read()
+
+
+def load_public_key(public_key_path: str) -> bytes:
+    """Load public key from file.
+
+    Args:
+        public_key_path: Path to public key file
+
+    Returns:
+        Public key PEM bytes
+    """
+    with open(public_key_path, "rb") as f:
+        return f.read()
+
+
+def compute_chained_fingerprint(
+    char: str, position: int, previous_fingerprint: bytes, private_key_pem: bytes
+) -> bytes:
+    """Compute a chained fingerprint for a character.
+
+    Each character's fingerprint depends on:
+    - The character itself
+    - Its position in the text
+    - The previous character's fingerprint (creating the chain)
+    - The private key (for authenticity)
+
+    Args:
+        char: The character to fingerprint
+        position: Position of character in text (0-based)
+        previous_fingerprint: Fingerprint of previous character (empty for first char)
+        private_key_pem: Private key for signing
+
+    Returns:
+        HMAC fingerprint bytes (32 bytes)
+    """
+    # Create the message to sign
+    message_parts = [
+        char.encode("utf-8"),
+        str(position).encode("utf-8"),
+        previous_fingerprint,
+    ]
+    message = b"|".join(message_parts)
+
+    # Use the private key as HMAC key (simplified approach)
+    # In practice, you might derive a signing key from the private key
+    return hmac.new(private_key_pem, message, hashlib.sha256).digest()
+
+
+def sign_text_with_chained_fingerprints(text: str, private_key_pem: bytes) -> str:
+    """Sign text using chained fingerprints for tampering detection.
+
+    Each character gets a unique fingerprint that depends on:
+    - The character itself
+    - Its position in the text
+    - The previous character's fingerprint (creating the chain)
+    - The private key (for authenticity)
+
+    Args:
+        text: Original text to sign
+        private_key_pem: Private key for signing
+
+    Returns:
+        Text with chained fingerprints encoded as variation selectors
+    """
+    if not text:
+        return text
+
+    result = ""
+    previous_fingerprint = b""
+
+    for position, char in enumerate(text):
+        # Compute chained fingerprint for this character
+        fingerprint = compute_chained_fingerprint(
+            char, position, previous_fingerprint, private_key_pem
+        )
+
+        # Encode the fingerprint as variation selectors after the character
+        signed_char = encode_bytes_in_char(char, fingerprint)
+        result += signed_char
+
+        # This fingerprint becomes the previous one for the next character
+        previous_fingerprint = fingerprint
+
+    return result
+
+
+def verify_chained_fingerprints(
+    signed_text: str, private_key_pem: bytes
+) -> Dict[str, Any]:
+    """Verify chained fingerprints and detect tampering.
+
+    Note: This function requires the private key to re-compute expected fingerprints
+    and compare them with the actual fingerprints in the text.
+
+    Args:
+        signed_text: Text with chained fingerprints
+        private_key_pem: Private key used for signing (needed for verification)
+
+    Returns:
+        Dictionary with verification results:
+        {
+            'is_valid': bool,
+            'original_text': str,
+            'tampered_positions': List[int],
+            'tampered_characters': List[str],
+            'analysis': str
+        }
+    """
+    # Extract characters and their fingerprints
+    characters = []
+    fingerprints = []
+
+    i = 0
+    while i < len(signed_text):
+        # Find the base character
+        base_char = signed_text[i]
+
+        # Find all variation selectors following this character
+        j = i + 1
+        while j < len(signed_text) and is_variation_selector(signed_text[j]):
+            j += 1
+
+        if j > i + 1:
+            # Extract the fingerprint from variation selectors
+            segment = signed_text[i:j]
+            fingerprint = decode_bytes_from_char(segment)
+            characters.append(base_char)
+            fingerprints.append(fingerprint)
+        else:
+            # Character without fingerprint - this is suspicious
+            characters.append(base_char)
+            fingerprints.append(b"")
+
+        i = j if j > i + 1 else i + 1
+
+    # Now verify the chain by re-computing expected fingerprints
+    original_text = "".join(characters)
+    tampered_positions = []
+    tampered_characters = []
+
+    previous_fingerprint = b""
+
+    for position, (char, actual_fingerprint) in enumerate(
+        zip(characters, fingerprints)
+    ):
+        if not actual_fingerprint:
+            # Missing fingerprint
+            tampered_positions.append(position)
+            tampered_characters.append(char)
+            continue
+
+        # Compute what the fingerprint SHOULD be
+        expected_fingerprint = compute_chained_fingerprint(
+            char, position, previous_fingerprint, private_key_pem
+        )
+
+        # Compare with actual fingerprint
+        if actual_fingerprint != expected_fingerprint:
+            tampered_positions.append(position)
+            tampered_characters.append(char)
+            # Use the actual fingerprint for next iteration to continue chain
+            previous_fingerprint = actual_fingerprint
+        else:
+            # Valid fingerprint - use it for next iteration
+            previous_fingerprint = expected_fingerprint
+
+    is_valid = len(tampered_positions) == 0
+
+    if is_valid:
+        analysis = f"✓ Text integrity verified. All {len(characters)} characters have valid signatures."
+    else:
+        analysis = f"✗ Tampering detected! {len(tampered_positions)} characters have invalid signatures at positions: {tampered_positions}"
+
+    return {
+        "is_valid": is_valid,
+        "original_text": original_text,
+        "tampered_positions": tampered_positions,
+        "tampered_characters": tampered_characters,
+        "analysis": analysis,
+        "total_characters": len(characters),
+        "signed_characters": len([f for f in fingerprints if f]),
+    }
+
+
+def extract_original_text_from_signed(signed_text: str) -> str:
+    """Extract the original text from signed text by removing variation selectors.
+
+    Args:
+        signed_text: Text with chained fingerprints
+
+    Returns:
+        Original text without variation selectors
+    """
+    result = ""
+    i = 0
+
+    while i < len(signed_text):
+        # Add the base character
+        result += signed_text[i]
+
+        # Skip all variation selectors
+        i += 1
+        while i < len(signed_text) and is_variation_selector(signed_text[i]):
+            i += 1
+
+    return result

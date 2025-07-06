@@ -175,3 +175,18 @@ Desktop.ini
 .env.development
 .env.test
 .env.production
+
+# PawPad generated files
+*.pem
+examples/*/encoded.txt
+examples/*/signed.txt
+examples/*/hidden.txt
+examples/*/hidden_emoji.txt
+examples/*/extracted.txt
+examples/*/tampered*.txt
+examples/*/fake_signed.txt
+examples/*/original_extracted.txt
+examples/*/tampered_extracted.txt
+examples/*/directly_tampered.txt
+
+info

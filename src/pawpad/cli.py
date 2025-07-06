@@ -4,6 +4,7 @@ Command-line interface for PawPad.
 
 import click
 import sys
+import os
 from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
@@ -20,6 +21,14 @@ from .encoder import (
     decode_message_from_text,
     encode_message_in_single_char,
     decode_message_from_single_char,
+    # Cryptographic functions
+    generate_key_pair,
+    save_key_pair,
+    load_private_key,
+    load_public_key,
+    sign_text_with_chained_fingerprints,
+    verify_chained_fingerprints,
+    extract_original_text_from_signed,
 )
 
 console = Console()
@@ -41,8 +50,19 @@ def main():
 @click.option(
     "--text",
     "-t",
-    prompt="Enter text to encode",
     help="Text to encode with fingerprint",
+)
+@click.option(
+    "--input-file",
+    "-i",
+    type=click.Path(exists=True),
+    help="Read text from file instead of --text option",
+)
+@click.option(
+    "--output-file",
+    "-o",
+    type=click.Path(),
+    help="Write encoded text to file",
 )
 @click.option(
     "--fingerprint",
@@ -52,9 +72,16 @@ def main():
 @click.option(
     "--length", "-l", default=16, help="Length of fingerprint in bytes (default: 16)"
 )
-def encode(text: str, fingerprint: str, length: int):
+def encode(text: str, input_file: str, output_file: str, fingerprint: str, length: int):
     """Encode a fingerprint into text."""
     try:
+        # Get input text
+        if input_file:
+            with open(input_file, "r", encoding="utf-8") as f:
+                text = f.read().strip()
+        elif not text:
+            text = click.prompt("Enter text to encode")
+
         if fingerprint:
             fp_bytes = string_to_fingerprint(fingerprint)
         else:
@@ -63,19 +90,26 @@ def encode(text: str, fingerprint: str, length: int):
         encoded_text = encode_fingerprint_in_text(text, fp_bytes)
         fp_string = fingerprint_to_string(fp_bytes)
 
+        # Output results
+        if output_file:
+            with open(output_file, "w", encoding="utf-8") as f:
+                f.write(encoded_text)
+            console.print(f"[green]✓[/green] Encoded text written to: {output_file}")
+
         console.print(
             Panel(
                 f"[bold green]Encoding successful![/bold green]\n\n"
                 f"[bold]Original text:[/bold] {text}\n"
                 f"[bold]Fingerprint:[/bold] {fp_string}\n"
-                f"[bold]Encoded text:[/bold] {encoded_text}",
+                f"[bold]Encoded text:[/bold] {encoded_text if not output_file else f'(written to {output_file})'}",
                 title="Encode Result",
                 border_style="green",
             )
         )
 
-        # Also show the encoded text alone for easy copying
-        console.print(f"\n[bold]Encoded text (copy this):[/bold]\n{encoded_text}")
+        # Also show the encoded text alone for easy copying if not writing to file
+        if not output_file:
+            console.print(f"\n[bold]Encoded text (copy this):[/bold]\n{encoded_text}")
 
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
@@ -86,17 +120,28 @@ def encode(text: str, fingerprint: str, length: int):
 @click.option(
     "--text",
     "-t",
-    prompt="Enter text to decode",
     help="Text to decode fingerprint from",
+)
+@click.option(
+    "--input-file",
+    "-i",
+    type=click.Path(exists=True),
+    help="Read text from file instead of --text option",
 )
 @click.option(
     "--fingerprint",
     "-f",
     help="Expected fingerprint (hex string). If provided, will check if this specific fingerprint is present.",
 )
-def decode(text: str, fingerprint: str):
+def decode(text: str, input_file: str, fingerprint: str):
     """Decode fingerprint from text."""
     try:
+        # Get input text
+        if input_file:
+            with open(input_file, "r", encoding="utf-8") as f:
+                text = f.read().strip()
+        elif not text:
+            text = click.prompt("Enter text to decode")
         if fingerprint:
             # Check for specific fingerprint
             expected_fp = string_to_fingerprint(fingerprint)
@@ -184,12 +229,24 @@ def generate(length: int):
 @click.option(
     "--text",
     "-t",
-    prompt="Enter text to analyze",
     help="Text to analyze for hidden data",
 )
-def analyze(text: str):
+@click.option(
+    "--input-file",
+    "-i",
+    type=click.Path(exists=True),
+    help="Read text from file instead of --text option",
+)
+def analyze(text: str, input_file: str):
     """Analyze text for hidden variation selectors."""
     try:
+        # Get input text
+        if input_file:
+            with open(input_file, "r", encoding="utf-8") as f:
+                text = f.read().strip()
+        elif not text:
+            text = click.prompt("Enter text to analyze")
+
         # Create a table to show character analysis
         table = Table(title="Character Analysis")
         table.add_column("Character", style="cyan")
@@ -230,13 +287,23 @@ def analyze(text: str):
 @click.option(
     "--text",
     "-t",
-    prompt="Enter text to encode message into",
     help="Text to encode secret message into",
+)
+@click.option(
+    "--input-file",
+    "-i",
+    type=click.Path(exists=True),
+    help="Read text from file instead of --text option",
+)
+@click.option(
+    "--output-file",
+    "-o",
+    type=click.Path(),
+    help="Write encoded text to file",
 )
 @click.option(
     "--message",
     "-m",
-    prompt="Enter secret message",
     help="Secret message to encode",
 )
 @click.option(
@@ -245,9 +312,20 @@ def analyze(text: str):
     is_flag=True,
     help="Encode entire message into a single character (Paul Butler's approach)",
 )
-def hide(text: str, message: str, single_char: bool):
+def hide(text: str, input_file: str, output_file: str, message: str, single_char: bool):
     """Hide a secret message in text using variation selectors."""
     try:
+        # Get input text
+        if input_file:
+            with open(input_file, "r", encoding="utf-8") as f:
+                text = f.read().strip()
+        elif not text:
+            text = click.prompt("Enter text to encode message into")
+
+        # Get message
+        if not message:
+            message = click.prompt("Enter secret message")
+
         if single_char:
             if len(text) != 1:
                 console.print(
@@ -258,19 +336,26 @@ def hide(text: str, message: str, single_char: bool):
         else:
             encoded_text = encode_message_in_text(text, message)
 
+        # Output results
+        if output_file:
+            with open(output_file, "w", encoding="utf-8") as f:
+                f.write(encoded_text)
+            console.print(f"[green]✓[/green] Encoded text written to: {output_file}")
+
         console.print(
             Panel(
                 f"[bold green]Message hidden successfully![/bold green]\n\n"
                 f"[bold]Original text:[/bold] {text}\n"
                 f"[bold]Secret message:[/bold] {message}\n"
-                f"[bold]Encoded text:[/bold] {encoded_text}",
+                f"[bold]Encoded text:[/bold] {encoded_text if not output_file else f'(written to {output_file})'}",
                 title="Hide Message Result",
                 border_style="green",
             )
         )
 
-        # Also show the encoded text alone for easy copying
-        console.print(f"\n[bold]Encoded text (copy this):[/bold]\n{encoded_text}")
+        # Also show the encoded text alone for easy copying if not writing to file
+        if not output_file:
+            console.print(f"\n[bold]Encoded text (copy this):[/bold]\n{encoded_text}")
 
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
@@ -281,8 +366,13 @@ def hide(text: str, message: str, single_char: bool):
 @click.option(
     "--text",
     "-t",
-    prompt="Enter text to reveal message from",
     help="Text to decode secret message from",
+)
+@click.option(
+    "--input-file",
+    "-i",
+    type=click.Path(exists=True),
+    help="Read text from file instead of --text option",
 )
 @click.option(
     "--single-char",
@@ -290,9 +380,16 @@ def hide(text: str, message: str, single_char: bool):
     is_flag=True,
     help="Decode message from a single character (Paul Butler's approach)",
 )
-def reveal(text: str, single_char: bool):
+def reveal(text: str, input_file: str, single_char: bool):
     """Reveal a secret message hidden in text."""
     try:
+        # Get input text
+        if input_file:
+            with open(input_file, "r", encoding="utf-8") as f:
+                text = f.read().strip()
+        elif not text:
+            text = click.prompt("Enter text to reveal message from")
+
         if single_char:
             decoded_message = decode_message_from_single_char(text)
         else:
@@ -318,6 +415,244 @@ def reveal(text: str, single_char: bool):
                     border_style="yellow",
                 )
             )
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        sys.exit(1)
+
+
+@main.command()
+@click.option(
+    "--private-key",
+    "-k",
+    default="pawpad_private.pem",
+    help="Path to save private key (default: pawpad_private.pem)",
+)
+@click.option(
+    "--public-key",
+    "-p",
+    default="pawpad_public.pem",
+    help="Path to save public key (default: pawpad_public.pem)",
+)
+def keygen(private_key: str, public_key: str):
+    """Generate RSA key pair for cryptographic signing."""
+    try:
+        private_key_pem, public_key_pem = generate_key_pair()
+        save_key_pair(private_key_pem, public_key_pem, private_key, public_key)
+
+        console.print(
+            Panel(
+                f"[bold green]Key pair generated successfully![/bold green]\n\n"
+                f"[bold]Private key:[/bold] {private_key}\n"
+                f"[bold]Public key:[/bold] {public_key}\n\n"
+                f"[yellow]⚠️  Keep your private key secure![/yellow]",
+                title="Key Generation Result",
+                border_style="green",
+            )
+        )
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        sys.exit(1)
+
+
+@main.command()
+@click.option(
+    "--text",
+    "-t",
+    help="Text to sign with chained fingerprints",
+)
+@click.option(
+    "--input-file",
+    "-i",
+    type=click.Path(exists=True),
+    help="Read text from file instead of --text option",
+)
+@click.option(
+    "--output-file",
+    "-o",
+    type=click.Path(),
+    help="Write signed text to file",
+)
+@click.option(
+    "--private-key",
+    "-k",
+    default="pawpad_private.pem",
+    help="Path to private key file (default: pawpad_private.pem)",
+)
+def sign(text: str, input_file: str, output_file: str, private_key: str):
+    """Sign text with chained cryptographic fingerprints for tampering detection."""
+    try:
+        # Get input text
+        if input_file:
+            with open(input_file, "r", encoding="utf-8") as f:
+                text = f.read().strip()
+        elif not text:
+            text = click.prompt("Enter text to sign")
+
+        if not os.path.exists(private_key):
+            console.print(
+                f"[bold red]Error:[/bold red] Private key file not found: {private_key}"
+            )
+            console.print("Run 'pawpad keygen' to generate a key pair first.")
+            sys.exit(1)
+
+        private_key_pem = load_private_key(private_key)
+        signed_text = sign_text_with_chained_fingerprints(text, private_key_pem)
+
+        # Output results
+        if output_file:
+            with open(output_file, "w", encoding="utf-8") as f:
+                f.write(signed_text)
+            console.print(f"[green]✓[/green] Signed text written to: {output_file}")
+
+        console.print(
+            Panel(
+                f"[bold green]Text signed successfully![/bold green]\n\n"
+                f"[bold]Original text:[/bold] {text}\n"
+                f"[bold]Signed text:[/bold] {signed_text if not output_file else f'(written to {output_file})'}\n\n"
+                f"[dim]Each character now has a unique cryptographic fingerprint[/dim]",
+                title="Sign Result",
+                border_style="green",
+            )
+        )
+
+        # Also show the signed text alone for easy copying if not writing to file
+        if not output_file:
+            console.print(f"\n[bold]Signed text (copy this):[/bold]\n{signed_text}")
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        sys.exit(1)
+
+
+@main.command()
+@click.option(
+    "--text",
+    "-t",
+    help="Signed text to verify for tampering",
+)
+@click.option(
+    "--input-file",
+    "-i",
+    type=click.Path(exists=True),
+    help="Read signed text from file instead of --text option",
+)
+@click.option(
+    "--private-key",
+    "-k",
+    default="pawpad_private.pem",
+    help="Path to private key file (default: pawpad_private.pem)",
+)
+def verify(text: str, input_file: str, private_key: str):
+    """Verify signed text and detect tampering."""
+    try:
+        # Get input text
+        if input_file:
+            with open(input_file, "r", encoding="utf-8") as f:
+                text = f.read().strip()
+        elif not text:
+            text = click.prompt("Enter signed text to verify")
+
+        if not os.path.exists(private_key):
+            console.print(
+                f"[bold red]Error:[/bold red] Private key file not found: {private_key}"
+            )
+            console.print("Run 'pawpad keygen' to generate a key pair first.")
+            sys.exit(1)
+
+        private_key_pem = load_private_key(private_key)
+        result = verify_chained_fingerprints(text, private_key_pem)
+
+        # Create a detailed analysis table
+        table = Table(title="Verification Analysis")
+        table.add_column("Property", style="cyan")
+        table.add_column("Value", style="white")
+
+        table.add_row("Valid", "✓ Yes" if result["is_valid"] else "✗ No")
+        table.add_row("Original Text", result["original_text"])
+        table.add_row("Total Characters", str(result["total_characters"]))
+        table.add_row("Signed Characters", str(result["signed_characters"]))
+
+        if result["tampered_positions"]:
+            table.add_row("Tampered Positions", str(result["tampered_positions"]))
+            table.add_row("Tampered Characters", str(result["tampered_characters"]))
+
+        console.print(table)
+
+        # Show the main result
+        if result["is_valid"]:
+            console.print(
+                Panel(
+                    f"[bold green]{result['analysis']}[/bold green]",
+                    title="Verification Result",
+                    border_style="green",
+                )
+            )
+        else:
+            console.print(
+                Panel(
+                    f"[bold red]{result['analysis']}[/bold red]\n\n"
+                    f"[yellow]The text has been modified after signing.[/yellow]",
+                    title="Verification Result",
+                    border_style="red",
+                )
+            )
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        sys.exit(1)
+
+
+@main.command()
+@click.option(
+    "--text",
+    "-t",
+    help="Signed text to extract original text from",
+)
+@click.option(
+    "--input-file",
+    "-i",
+    type=click.Path(exists=True),
+    help="Read signed text from file instead of --text option",
+)
+@click.option(
+    "--output-file",
+    "-o",
+    type=click.Path(),
+    help="Write extracted text to file",
+)
+def extract(text: str, input_file: str, output_file: str):
+    """Extract original text from signed text (removes signatures)."""
+    try:
+        # Get input text
+        if input_file:
+            with open(input_file, "r", encoding="utf-8") as f:
+                text = f.read().strip()
+        elif not text:
+            text = click.prompt("Enter signed text to extract original from")
+
+        original_text = extract_original_text_from_signed(text)
+
+        # Output results
+        if output_file:
+            with open(output_file, "w", encoding="utf-8") as f:
+                f.write(original_text)
+            console.print(f"[green]✓[/green] Extracted text written to: {output_file}")
+
+        console.print(
+            Panel(
+                f"[bold green]Original text extracted![/bold green]\n\n"
+                f"[bold]Signed text:[/bold] {text}\n"
+                f"[bold]Original text:[/bold] {original_text if not output_file else f'(written to {output_file})'}",
+                title="Extract Result",
+                border_style="green",
+            )
+        )
+
+        # Also show the original text alone for easy copying if not writing to file
+        if not output_file:
+            console.print(f"\n[bold]Original text (copy this):[/bold]\n{original_text}")
 
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
