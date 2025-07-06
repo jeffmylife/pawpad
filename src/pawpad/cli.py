@@ -310,7 +310,7 @@ def analyze(text: str, input_file: str):
     "--single-char",
     "-s",
     is_flag=True,
-    help="Encode entire message into a single character (Paul Butler's approach)",
+    help="Encode entire message into a single character",
 )
 def hide(text: str, input_file: str, output_file: str, message: str, single_char: bool):
     """Hide a secret message in text using variation selectors."""
@@ -378,7 +378,7 @@ def hide(text: str, input_file: str, output_file: str, message: str, single_char
     "--single-char",
     "-s",
     is_flag=True,
-    help="Decode message from a single character (Paul Butler's approach)",
+    help="Decode message from a single character",
 )
 def reveal(text: str, input_file: str, single_char: bool):
     """Reveal a secret message hidden in text."""

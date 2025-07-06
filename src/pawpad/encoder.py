@@ -17,7 +17,7 @@ import os
 def byte_to_variation_selector(byte: int) -> str:
     """Convert a byte (0-255) to a Unicode variation selector character.
 
-    Uses the exact same mapping as Paul Butler's emoji-encoder:
+    Uses a standard mapping for variation selectors:
     - VS1..=VS16 (0xFE00-0xFE0F) for bytes 0-15
     - VS17..=VS256 (0xE0100-0xE01EF) for bytes 16-255
 
@@ -38,7 +38,7 @@ def byte_to_variation_selector(byte: int) -> str:
 def variation_selector_to_byte(char: str) -> Optional[int]:
     """Convert a Unicode variation selector character back to a byte.
 
-    Uses the exact same mapping as Paul Butler's emoji-encoder.
+    Uses a standard mapping for variation selectors.
 
     Args:
         char: Unicode variation selector character
@@ -234,7 +234,7 @@ def extract_fingerprint_from_text(text: str) -> Optional[bytes]:
 
 
 def encode_message_in_text(text: str, message: str) -> str:
-    """Encode a secret message into text using Paul Butler's approach.
+    """Encode a secret message into text using variation selectors.
 
     Distributes the message bytes across the available characters in the text.
     Each character gets a portion of the message encoded as variation selectors.
@@ -278,7 +278,7 @@ def encode_message_in_text(text: str, message: str) -> str:
 
 
 def decode_message_from_text(text: str) -> str:
-    """Decode a secret message from text encoded with Paul Butler's approach.
+    """Decode a secret message from text encoded with variation selectors.
 
     Args:
         text: Text containing encoded secret message
@@ -315,7 +315,7 @@ def decode_message_from_text(text: str) -> str:
 
 
 def encode_message_in_single_char(base_char: str, message: str) -> str:
-    """Encode a secret message into a single character (Paul Butler's exact approach).
+    """Encode a secret message into a single character using variation selectors.
 
     Args:
         base_char: The base character to attach variation selectors to

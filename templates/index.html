@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🐾 PawPad - Unicode Steganography Tool</title>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .result-container {
+            display: none;
+        }
+
+        .result-container.show {
+            display: block;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .tab-button.active {
+            @apply bg-blue-500 text-white;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-gray-800 mb-2">🐾 PawPad</h1>
+            <p class="text-lg text-gray-600">Unicode Steganography Tool</p>
+            <p class="text-sm text-gray-500 mt-2">Hide data in text using invisible Unicode variation selectors</p>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="flex flex-wrap justify-center mb-8 border-b border-gray-200">
+            <button onclick="showTab('fingerprint')"
+                class="tab-button active px-6 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 border-b-2 border-transparent hover:border-gray-300">
+                Basic Fingerprinting
+            </button>
+            <button onclick="showTab('message')"
+                class="tab-button px-6 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 border-b-2 border-transparent hover:border-gray-300">
+                Message Hiding
+            </button>
+            <button onclick="showTab('crypto')"
+                class="tab-button px-6 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 border-b-2 border-transparent hover:border-gray-300">
+                🔒 Cryptographic Signing
+            </button>
+            <button onclick="showTab('utility')"
+                class="tab-button px-6 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 border-b-2 border-transparent hover:border-gray-300">
+                Utilities
+            </button>
+        </div>
+
+        <!-- Basic Fingerprinting Tab -->
+        <div id="fingerprint" class="tab-content active">
+            <div class="grid md:grid-cols-2 gap-8">
+                <!-- Encode Section -->
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <h2 class="text-xl font-semibold mb-4 text-green-600">📝 Encode Fingerprint</h2>
+                    <form hx-post="/encode" hx-target="#encode-result" hx-swap="innerHTML">
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Text to encode:</label>
+                            <textarea name="text" rows="3"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="Enter text to encode with fingerprint..." required></textarea>
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Fingerprint (optional):</label>
+                            <input type="text" name="fingerprint"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="Leave empty for random fingerprint">
+                            <p class="text-xs text-gray-500 mt-1">Hex string (e.g., deadbeef1234). Leave empty to
+                                generate random.</p>
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Length (if random):</label>
+                            <input type="number" name="length" value="16" min="1" max="256"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <button type="submit"
+                            class="w-full bg-green-500 text-white py-2 px-4 rounded-md hover:bg-green-600 transition duration-200">
+                            Encode Text
+                        </button>
+                    </form>
+                    <div id="encode-result" class="mt-4"></div>
+                </div>
+
+                <!-- Decode Section -->
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <h2 class="text-xl font-semibold mb-4 text-blue-600">🔍 Decode Fingerprint</h2>
+                    <form hx-post="/decode" hx-target="#decode-result" hx-swap="innerHTML">
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Text to decode:</label>
+                            <textarea name="text" rows="3"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="Paste encoded text here..." required></textarea>
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Expected fingerprint
+                                (optional):</label>
+                            <input type="text" name="expected_fingerprint"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="Leave empty to extract any fingerprint">
+                            <p class="text-xs text-gray-500 mt-1">If provided, will check for this specific fingerprint.
+                            </p>
+                        </div>
+                        <button type="submit"
+                            class="w-full bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 transition duration-200">
+                            Decode Text
+                        </button>
+                    </form>
+                    <div id="decode-result" class="mt-4"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Message Hiding Tab -->
+        <div id="message" class="tab-content">
+            <div class="grid md:grid-cols-2 gap-8">
+                <!-- Hide Message Section -->
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <h2 class="text-xl font-semibold mb-4 text-purple-600">🔐 Hide Message</h2>
+                    <form hx-post="/hide" hx-target="#hide-result" hx-swap="innerHTML">
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Cover text:</label>
+                            <textarea name="text" rows="3"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="Enter cover text or single character..." required></textarea>
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Secret message:</label>
+                            <textarea name="message" rows="2"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="Enter secret message to hide..." required></textarea>
+                        </div>
+                        <div class="mb-4">
+                            <label class="flex items-center">
+                                <input type="checkbox" name="single_char" value="true" class="mr-2">
+                                <span class="text-sm text-gray-700">Single character mode</span>
+                            </label>
+                            <p class="text-xs text-gray-500 mt-1">Encode entire message in a single character (e.g.,
+                                emoji).</p>
+                        </div>
+                        <button type="submit"
+                            class="w-full bg-purple-500 text-white py-2 px-4 rounded-md hover:bg-purple-600 transition duration-200">
+                            Hide Message
+                        </button>
+                    </form>
+                    <div id="hide-result" class="mt-4"></div>
+                </div>
+
+                <!-- Reveal Message Section -->
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <h2 class="text-xl font-semibold mb-4 text-orange-600">🔓 Reveal Message</h2>
+                    <form hx-post="/reveal" hx-target="#reveal-result" hx-swap="innerHTML">
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Text with hidden
+                                message:</label>
+                            <textarea name="text" rows="3"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="Paste text with hidden message..." required></textarea>
+                        </div>
+                        <div class="mb-4">
+                            <label class="flex items-center">
+                                <input type="checkbox" name="single_char" value="true" class="mr-2">
+                                <span class="text-sm text-gray-700">Single character mode</span>
+                            </label>
+                            <p class="text-xs text-gray-500 mt-1">Check if the message was encoded in a single
+                                character.</p>
+                        </div>
+                        <button type="submit"
+                            class="w-full bg-orange-500 text-white py-2 px-4 rounded-md hover:bg-orange-600 transition duration-200">
+                            Reveal Message
+                        </button>
+                    </form>
+                    <div id="reveal-result" class="mt-4"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cryptographic Signing Tab -->
+        <div id="crypto" class="tab-content">
+            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd"
+                                d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                                clip-rule="evenodd" />
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm font-medium text-yellow-800">Demo Mode</h3>
+                        <p class="text-sm text-yellow-700">Using temporary demo keys. In production, use your own RSA
+                            key pairs.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-8">
+                <!-- Sign Text Section -->
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <h2 class="text-xl font-semibold mb-4 text-red-600">✍️ Sign Text</h2>
+                    <form hx-post="/sign" hx-target="#sign-result" hx-swap="innerHTML">
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Text to sign:</label>
+                            <textarea name="text" rows="4"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="Enter text to sign with cryptographic fingerprints..." required></textarea>
+                            <p class="text-xs text-gray-500 mt-1">Each character will get a unique cryptographic
+                                signature.</p>
+                        </div>
+                        <button type="submit"
+                            class="w-full bg-red-500 text-white py-2 px-4 rounded-md hover:bg-red-600 transition duration-200">
+                            Sign Text
+                        </button>
+                    </form>
+                    <div id="sign-result" class="mt-4"></div>
+                </div>
+
+                <!-- Verify Text Section -->
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <h2 class="text-xl font-semibold mb-4 text-green-600">✅ Verify Text</h2>
+                    <form hx-post="/verify" hx-target="#verify-result" hx-swap="innerHTML">
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Signed text to verify:</label>
+                            <textarea name="text" rows="4"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="Paste signed text to verify..." required></textarea>
+                            <p class="text-xs text-gray-500 mt-1">Will detect any tampering or modifications.</p>
+                        </div>
+                        <button type="submit"
+                            class="w-full bg-green-500 text-white py-2 px-4 rounded-md hover:bg-green-600 transition duration-200">
+                            Verify Text
+                        </button>
+                    </form>
+                    <div id="verify-result" class="mt-4"></div>
+                </div>
+
+                <!-- Extract Original Text Section -->
+                <div class="bg-white rounded-lg shadow-md p-6 md:col-span-2">
+                    <h2 class="text-xl font-semibold mb-4 text-indigo-600">📄 Extract Original Text</h2>
+                    <form hx-post="/extract" hx-target="#extract-result" hx-swap="innerHTML">
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Signed text:</label>
+                            <textarea name="text" rows="3"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="Paste signed text to extract original..." required></textarea>
+                            <p class="text-xs text-gray-500 mt-1">Removes all signatures and returns the original text.
+                            </p>
+                        </div>
+                        <button type="submit"
+                            class="w-full bg-indigo-500 text-white py-2 px-4 rounded-md hover:bg-indigo-600 transition duration-200">
+                            Extract Original
+                        </button>
+                    </form>
+                    <div id="extract-result" class="mt-4"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Utilities Tab -->
+        <div id="utility" class="tab-content">
+            <div class="max-w-md mx-auto">
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <h2 class="text-xl font-semibold mb-4 text-gray-600">🎲 Generate Random Fingerprint</h2>
+                    <form hx-post="/generate-fingerprint" hx-target="#generate-result" hx-swap="innerHTML">
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Length (bytes):</label>
+                            <input type="number" name="length" value="16" min="1" max="256"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <p class="text-xs text-gray-500 mt-1">Number of bytes in the fingerprint (1-256).</p>
+                        </div>
+                        <button type="submit"
+                            class="w-full bg-gray-500 text-white py-2 px-4 rounded-md hover:bg-gray-600 transition duration-200">
+                            Generate Fingerprint
+                        </button>
+                    </form>
+                    <div id="generate-result" class="mt-4"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Info Section -->
+        <div class="mt-12 bg-blue-50 border border-blue-200 rounded-lg p-6">
+            <h3 class="text-lg font-semibold text-blue-800 mb-2">ℹ️ How It Works</h3>
+            <p class="text-sm text-blue-700 mb-2">
+                PawPad uses Unicode variation selectors (invisible characters) to hide data in text. The encoded text
+                looks identical but contains hidden information that survives copy/paste operations.
+            </p>
+            <ul class="text-sm text-blue-700 space-y-1">
+                <li>• <strong>Basic Fingerprinting:</strong> Watermark text with repeated fingerprints</li>
+                <li>• <strong>Message Hiding:</strong> Hide secret messages in cover text</li>
+                <li>• <strong>Cryptographic Signing:</strong> Bulletproof tampering detection with chained signatures
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        function showTab(tabName) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+
+            // Remove active class from all tab buttons
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.classList.remove('active');
+                button.classList.remove('bg-blue-500', 'text-white');
+                button.classList.add('text-gray-500');
+            });
+
+            // Show selected tab content
+            document.getElementById(tabName).classList.add('active');
+
+            // Activate selected tab button
+            event.target.classList.add('active', 'bg-blue-500', 'text-white');
+            event.target.classList.remove('text-gray-500');
+        }
+    </script>
+</body>
+
+</html>

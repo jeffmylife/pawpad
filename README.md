@@ -36,6 +36,29 @@ uv sync
 pip install -e .
 ```
 
+## 🌐 Web UI
+
+PawPad includes a modern web interface for interactive demonstrations:
+
+```bash
+# Install web UI dependencies
+uv add fastapi uvicorn jinja2 python-multipart
+
+# Start the web server
+python web_ui.py
+
+# Open http://localhost:8000 in your browser
+```
+
+The web UI provides:
+- **Interactive demos** of all PawPad features
+- **Real-time encoding/decoding** with visual feedback
+- **Copy-paste workflow** that handles Unicode correctly
+- **Tabbed interface** for easy navigation
+- **Professional design** perfect for demonstrations
+
+See [WEB_UI_DEMO.md](WEB_UI_DEMO.md) for detailed usage instructions.
+
 ## Examples
 
 The `examples/` folder contains demonstration files for easy testing:
@@ -93,7 +116,7 @@ pawpad verify --input-file signed.txt --private-key my_private.pem
 pawpad extract --input-file signed.txt --output-file original.txt
 ```
 
-### Message Hiding (Paul Butler's Approach)
+### Message Hiding
 
 ```bash
 # File-based workflow (recommended to avoid copy/paste issues)
@@ -264,5 +287,5 @@ This project is provided for educational purposes. Use responsibly and in accord
 
 ## Acknowledgments
 
-Inspired by the Unicode steganography techniques discussed in [Paul Butler's blog post](https://paulbutler.org/2025/smuggling-arbitrary-data-through-an-emoji/) and the original concept from [GuB-42's Hacker News comment](https://news.ycombinator.com/item?id=42823876).
+Inspired by Unicode steganography techniques and the original concept from [GuB-42's Hacker News comment](https://news.ycombinator.com/item?id=42823876).
 

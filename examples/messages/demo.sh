@@ -19,7 +19,7 @@ echo "4. Revealing the hidden message..."
 pawpad reveal --input-file hidden.txt
 echo
 
-echo "5. Hiding message in a single emoji (Paul Butler's approach)..."
+echo "5. Hiding message in a single emoji..."
 echo "😊" > emoji.txt
 pawpad hide --input-file emoji.txt --output-file hidden_emoji.txt --message "Secret data" --single-char
 echo
