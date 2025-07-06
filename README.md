@@ -284,8 +284,3 @@ $ pawpad verify --text "tampered_text"
 ## License
 
 This project is provided for educational purposes. Use responsibly and in accordance with applicable laws and regulations.
-
-## Acknowledgments
-
-Inspired by Unicode steganography techniques and the original concept from [GuB-42's Hacker News comment](https://news.ycombinator.com/item?id=42823876).
-
